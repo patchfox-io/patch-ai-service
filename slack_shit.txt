@@ -1,15 +1,22 @@
 #
 # slack 
 #
-
+export PATCH_BOT_MODE=console #slack
 export SLACK_BOT_TOKEN=""
 export SLACK_APP_TOKEN=""
 
 
 #
+# optional console env vars 
+#
+#export PATCH_CONSOLE_USER=U1
+#export PATCH_CONSOLE_CHANNEL=C1
+#export PATCH_CONSOLE_THREAD=THREAD1
+
+
+#
 # genAI 
 #
-
 # access tokens 
 # DOES NOT HAVE TO BE ANTHROPIC
 export ANTHROPIC_API_KEY=""
