@@ -38,6 +38,9 @@ from patch_ai import models
 matplotlib.use("Agg")  # Use non-interactive backend
 
 
+PATCH_BOT_MODE = os.getenv("PATCH_BOT_MODE", "slack").strip().lower()
+
+
 # these are total out of my ass guesses 
 MODEL_CONTEXT_WINDOW = 16384  
 CONTEXT_BUFFER_RATIO = 0.3
@@ -367,6 +370,10 @@ class ChatState(BaseModel):
 
 def update_status_message(ctx: RunContext[ChatState]):
     """Update the status message for the current request based on current counts"""
+
+    if PATCH_BOT_MODE == "console":
+        return
+
     if not ctx.deps.slack_client or not ctx.deps.slack_channel:
         return
     

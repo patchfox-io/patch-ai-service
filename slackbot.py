@@ -1,6 +1,9 @@
 import os
 import uuid
 import time
+import socket
+import threading
+
 from dataclasses import dataclass, field
 from collections import defaultdict
 from loguru import logger
@@ -251,11 +254,20 @@ def process_user_message(*, user_id: str, channel_id: str, text: str, thread_ts:
 
         logger.info(f"Restored metadata for thread {thread_ts}: {list(metadata.keys())}")
 
-        result = patch_agent.run_sync(
-            text,
-            deps=chat_state,
-            message_history=history,
-        )
+        # result = patch_agent.run_sync(
+        #     text,
+        #     deps=chat_state,
+        #     message_history=history,
+        # )
+
+        try:
+            result = patch_agent.run_sync(text, deps=chat_state, message_history=history)
+        except Exception as e:
+            if MODE == "console" and "Server disconnected without sending a response" in str(e):
+                result = patch_agent.run_sync(text, deps=chat_state, message_history=history)
+            else:
+                raise
+
 
         # --- Post tool-generated markdown tables (if any) ---
         tool_tables = chat_state.metadata.pop("last_md_tables", [])
@@ -436,6 +448,19 @@ class FakeSlackClient:
     """
     threads: dict = field(default_factory=dict)  # (channel, thread_ts) -> list[dict]
     bot_user_id: str = "U_CONSOLE_BOT"
+    sender = None  # set per connection
+
+    def chat_postMessage(self, channel, text, thread_ts=None, **kwargs):
+        ts = str(time.time())
+        # console mode: never emit status messages
+        if text and ("*WORKING*" in text or "*COMPLETE*" in text or "*ERROR*" in text):
+            return {"ok": True, "ts": ts}
+        try:
+            if self.sender:
+                self.sender(text)
+        except Exception:
+            pass
+        return {"ok": True, "ts": ts}
 
     def auth_test(self):
         return {"user_id": self.bot_user_id}
@@ -444,9 +469,16 @@ class FakeSlackClient:
         msgs = self.threads.get((channel, ts), [])
         return {"messages": msgs[:limit]}
 
-    def chat_update(self, channel: str, ts: str, text: str, thread_ts: str = None):
-        # Just print status updates in console mode
-        print(f"[status] channel={channel} thread={thread_ts} ts={ts} :: {text}")
+    def chat_update(self, channel: str, ts: str, text: str, thread_ts: str = None, **kwargs):
+        # console mode: never emit status messages
+        if text and ("*WORKING*" in text or "*COMPLETE*" in text or "*ERROR*" in text):
+            return {"ok": True, "ts": ts}
+        try:
+            if self.sender:
+                self.sender(text)
+        except Exception:
+            pass
+        return {"ok": True, "ts": ts}
 
     def files_upload_v2(self, channel: str, file, filename: str, title: str, initial_comment: str, thread_ts: str = None):
         # No upload in console; just announce
@@ -505,6 +537,49 @@ def run_console_mode():
         )
 
 
+
+# -----------------------
+# for console loopback (in place of slack)
+# -----------------------
+def start_console_listener():
+    def run():
+        s = socket.socket()
+        s.bind(("127.0.0.1", 8765))
+        s.listen(1)
+        logger.info("Console chat listener on 127.0.0.1:8765")
+
+        def say(text, thread_ts=None):
+            conn.sendall((text + "\n").encode())
+
+        while True:
+            conn, _ = s.accept()
+            with conn:
+                f = conn.makefile("r")
+                def say(text, thread_ts=None):
+                    conn.sendall((text + "\n").encode())
+                    console_client.sender = lambda t: conn.sendall((t + "\n").encode())
+                for line in f:
+                    data = line.strip()
+                    if not data:
+                        continue
+
+                    process_user_message(
+                        user_id="U_CONSOLE",
+                        channel_id="C_CONSOLE",
+                        text=data,
+                        thread_ts="T_CONSOLE",
+                        is_threaded=True,
+                        client=console_client,
+                        say=say,
+                    )
+
+
+    threading.Thread(target=run, daemon=True).start()
+
+
+
+
+
 # -----------------------
 # Entrypoint
 # -----------------------
@@ -512,7 +587,10 @@ if __name__ == "__main__":
     logger.info(f"Starting Patch AI bot in mode={MODE!r}")
 
     if MODE == "console":
-        run_console_mode()
+        console_client = FakeSlackClient()
+        start_console_listener()
+        while True:
+            time.sleep(3600)
     elif MODE == "slack":
         if "SLACK_APP_TOKEN" not in os.environ:
             raise RuntimeError("SLACK_APP_TOKEN is required for PATCH_BOT_MODE=slack (Socket Mode).")
