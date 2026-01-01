@@ -1,0 +1,6 @@
+httpx>=0.28.1
+loguru>=0.7.3
+pydantic-ai>=0.3.4
+slack-bolt>=1.23.0
+matplotlib>=3.10.6
+slackify-markdown>=0.2.0

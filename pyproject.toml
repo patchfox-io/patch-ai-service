@@ -1,0 +1,23 @@
+[project]
+name = "patch-ai-service"
+version = "0.1.0"
+description = "A Patchfox AI"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [ { name = "Steve McMaster", email = "steve@patchfox.io" } ]
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+    "pydantic-ai>=0.3.4",
+    "slack-bolt>=1.23.0",
+    "matplotlib>=3.10.6",
+    "slackify-markdown>=0.2.0"
+    ]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.1.0",
+    "pytest>=8.3.4",
+    "ruff>=0.9.5",
+]
