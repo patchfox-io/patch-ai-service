@@ -1,0 +1,17 @@
+# 
+export PATCH_BOT_MODE=console
+export PATCH_CONSOLE_USER=U1
+export PATCH_CONSOLE_CHANNEL=C1
+export PATCH_CONSOLE_THREAD=THREAD1
+
+# access tokens for GENAI - NEEDS TO MATCH THE ACTIVE MODEL ID FOR THE MODEL YOU ARE USING 
+#export ANTHROPIC_API_KEY=MR_KEY_FACE
+#export GOOGLE_API_KEY=MR_KEY_FACE
+#export OPENAI_API_KEY=MR_KEY_FACE
+
+# 
+export DATA_SERVICE_BASE_URL="http://localhost:1702/api/v1/db"
+
+# active model 
+# DOES NOT HAVE TO BE ANTHROPIC 
+export MODEL_ID="anthropic:claude-sonnet-4-20250514"
